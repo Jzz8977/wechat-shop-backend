@@ -1,15 +1,15 @@
 const mongoose = require('mongoose');
 const config = require('./config');
-const Address = require('./models/Address');
-const Cart = require('./models/Cart');
-const Category = require('./models/Category');
+const Address = require('./models/address');
+const Cart = require('./models/cart');
+const Category = require('./models/category');
 
-const Coupon = require('./models/Coupon');
-const Inventory = require('./models/Inventory');
-const Order = require('./models/Order');
-const OrderDetail = require('./models/OrderDetail');
-const Product = require('./models/Product');
-const User = require('./models/User');
+const Coupon = require('./models/coupon');
+const Inventory = require('./models/inventory');
+const Order = require('./models/order');
+const OrderDetail = require('./models/orderDetail');
+const Product = require('./models/product');
+const User = require('./models/user');
 
 // 连接数据库
 const connectDB = async () => {
