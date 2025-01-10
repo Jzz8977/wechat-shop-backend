@@ -14,6 +14,7 @@ const User = require('../models/user');
 // 连接数据库
 const connectDB = async () => {
   try {
+    mongoose.set("strictQuery", false);
     await mongoose.connect(config.db.uri, config.db.options);
     console.log('MongoDB connected successfully');
   } catch (err) {
@@ -21,5 +22,4 @@ const connectDB = async () => {
     process.exit(1);
   }
 };
-
 module.exports = { connectDB };

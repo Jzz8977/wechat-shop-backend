@@ -1,7 +1,3 @@
-const User = require('../models/User');
-const Order = require('../models/Order');
-const Category = require('../models/Category'); // 新增
-
 const dbService = {
   // 通用创建方法
   create: async (Model, data) => {
