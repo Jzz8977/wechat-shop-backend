@@ -13,6 +13,7 @@ const categoryRoutes = require('./routes/category'); // 引入分类路由
 const inventoryRoutes = require('./routes/inventory'); // 引入库存路由
 const userRoutes = require('./routes/user');
 const uploadRoutes = require('./routes/upload');
+const paymentRoutes = require('./routes/payment');
 
 const app = express();
 let port = 5001; // 修改为 let
@@ -67,6 +68,8 @@ app.use('/api/upload', uploadRoutes);
 // 添加静态文件服务
 app.use('/uploads', express.static('public/uploads'));
 // 限制带宽为 128KB/s
+
+app.use('/api/payment', paymentRoutes);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
