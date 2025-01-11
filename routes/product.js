@@ -88,13 +88,7 @@ router.post('/update', verifyToken, isAdmin,  async (req, res) => {
       return res.error('Product not found', 404);
     }
     // 添加新上传的图片,删除旧的图片
-    const imagesToDelete = [];
-    product.images.forEach(img => {
-      if (!images.includes(img)) {
-        imagesToDelete.push(img);
-      }
-    });
-    
+    const imagesToDelete = product.images.filter(img => !images.includes(img));
     imagesToDelete.forEach(img => {
       const filePath = path.join(__dirname, '../public', img);
       fs.unlink(filePath, (err) => {
