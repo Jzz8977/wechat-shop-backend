@@ -7,27 +7,6 @@ const responseHandler = require('../middlewares/responseHandler');
 const { verifyToken, isAdmin, hasPermission } = require('../middlewares/authMiddleware');
 const router = express.Router();
 
-// 获取所有客户
-router.get('/', async (req, res) => {
-  try {
-    const customers = await Customer.find();
-    res.success(customers);
-  } catch (err) {
-    res.error(err.message);
-  }
-});
-
-// 创建新客户
-router.post('/', async (req, res) => {
-  const customer = new Customer(req.body);
-  try {
-    const newCustomer = await customer.save();
-    res.success(newCustomer);
-  } catch (err) {
-    res.error(err.message, 400);
-  }
-});
-
 // 微信小程序登录
 router.post('/login', async (req, res) => {
   const { code } = req.body;
@@ -80,6 +59,48 @@ router.post('/info', async (req, res) => {
     } 
     await customer.save();
     res.success(customer, 'Customer information updated successfully');
+  } catch (err) {
+    res.error(err.message);
+  }
+});
+
+// 获取客户列表
+router.post('/list', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10,
+      keyword,
+      sort = 'createdAt',
+      order = 'desc'
+    } = req.body;
+    
+    // 构建查询条件
+    const query = {};
+    if (keyword) {
+      query.$or = [
+        { nickname: new RegExp(keyword, 'i') },
+        { openid: new RegExp(keyword, 'i') },
+        { phone: new RegExp(keyword, 'i') }
+      ];
+    }
+    
+    // 计算总数
+    const total = await Customer.countDocuments(query);
+    
+    // 获取客户列表
+    const customers = await Customer.find(query)
+      .select('-__v')
+      .sort({ [sort]: order })
+      .skip((page - 1) * limit)
+      .limit(limit);
+    
+    res.success({
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      items: customers
+    });
   } catch (err) {
     res.error(err.message);
   }

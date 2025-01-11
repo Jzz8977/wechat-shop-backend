@@ -51,7 +51,7 @@ connectDB();
 // 示例 API 路由
 
 // 使用用户路由
-app.use('/api/customers', customerRoutes);
+app.use('/api/wxusers', customerRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/carts', cartRoutes);
