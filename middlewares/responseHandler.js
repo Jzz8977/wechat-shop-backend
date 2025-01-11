@@ -1,6 +1,9 @@
 module.exports = (req, res, next) => {
+  if (req.body) {
+    console.log('Request Body:', req.body);
+  }
+
   res.success = (data, message = 'Success', statusCode = 200) => {
-    console.log('21321', data)
     res.status(statusCode).json({
       status: 'success',
       message,
