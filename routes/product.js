@@ -1,5 +1,5 @@
 const express = require('express');
-const multer = require('multer'); // 用于处理文件上传
+const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const Product = require('../models/product');
@@ -17,8 +17,11 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
+    // 获取原始文件的扩展名
+    const ext = path.extname(file.originalname).toLowerCase();
+    // 生成文件名: 时间戳-随机数.扩展名
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    cb(null, uniqueSuffix + ext);
   }
 });
 
@@ -26,7 +29,8 @@ const upload = multer({
   storage: storage,
   fileFilter: (req, file, cb) => {
     // 只允许上传图片
-    if (file.mimetype.startsWith('image/')) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Only image files are allowed!'));
@@ -38,13 +42,20 @@ const upload = multer({
 });
 
 // 创建新商品
-router.post('/create', verifyToken, isAdmin, upload.array('images', 5), async (req, res) => {
+router.post('/create', verifyToken, isAdmin, async (req, res) => {
   try {
-    const { name, price, description, categoryId, stock, specs } = req.body;
+    const { name, price, description, categoryId, stock, images } = req.body;
+    let specs = [];
     
-    // 处理上传的图片
-    const images = req.files ? req.files.map(file => `/uploads/products/${file.filename}`) : [];
-    
+    // 解析 specs
+    try {
+      if (req.body.specs) {
+        specs = JSON.parse(req.body.specs);
+      }
+    } catch (err) {
+      console.error('Error parsing specs:', err);
+    }
+    console.log(images);
     const product = new Product({
       name,
       price: Number(price),
@@ -52,45 +63,46 @@ router.post('/create', verifyToken, isAdmin, upload.array('images', 5), async (r
       categoryId,
       stock: Number(stock),
       images,
-      specs: JSON.parse(specs || '[]')
+      specs
     });
     
     await product.save();
-    res.success(product, 'Product created successfully');
+    
+    // 获取完整的商品信息（包括关联的分类信息）
+    const savedProduct = await Product.findById(product._id)
+      .populate('categoryId', 'name');
+    
+    res.success(savedProduct, 'Product created successfully');
   } catch (err) {
     res.error(err.message, 400);
   }
 });
 
 // 更新商品
-router.post('/update', verifyToken, isAdmin, upload.array('images', 5), async (req, res) => {
+router.post('/update', verifyToken, isAdmin,  async (req, res) => {
   try {
-    const { _id, name, price, description, categoryId, stock, specs, removeImages } = req.body;
+    const { id, name, price, description, categoryId, stock, specs, images } = req.body;
     
-    const product = await Product.findById(_id);
+    const product = await Product.findById(id);
     if (!product) {
       return res.error('Product not found', 404);
     }
+    // 添加新上传的图片,删除旧的图片
+    const imagesToDelete = [];
+    product.images.forEach(img => {
+      if (!images.includes(img)) {
+        imagesToDelete.push(img);
+      }
+    });
     
-    // 处理要删除的图片
-    if (removeImages) {
-      const imagesToRemove = JSON.parse(removeImages);
-      product.images = product.images.filter(img => !imagesToRemove.includes(img));
-      
-      // 从文件系统中删除图片
-      imagesToRemove.forEach(img => {
-        const filePath = path.join(__dirname, '../public', img);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
+    imagesToDelete.forEach(img => {
+      const filePath = path.join(__dirname, '../public', img);
+      fs.unlink(filePath, (err) => {
+        if (err) console.error('Error deleting old image:', err);
       });
-    }
+    });
     
-    // 添加新上传的图片
-    if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(file => `/uploads/products/${file.filename}`);
-      product.images = [...product.images, ...newImages];
-    }
+    product.images = [...images];
     
     // 更新其他字段
     if (name) product.name = name;
@@ -98,10 +110,21 @@ router.post('/update', verifyToken, isAdmin, upload.array('images', 5), async (r
     if (description) product.description = description;
     if (categoryId) product.categoryId = categoryId;
     if (stock) product.stock = Number(stock);
-    if (specs) product.specs = JSON.parse(specs);
+    if (specs) {
+      try {
+        product.specs = JSON.parse(specs);
+      } catch (err) {
+        console.error('Error parsing specs:', err);
+      }
+    }
     
     await product.save();
-    res.success(product, 'Product updated successfully');
+    
+    // 获取更新后的完整商品信息
+    const updatedProduct = await Product.findById(id)
+      .populate('categoryId', 'name');
+    
+    res.success(updatedProduct, 'Product updated successfully');
   } catch (err) {
     res.error(err.message);
   }
@@ -133,8 +156,9 @@ router.post('/list', async (req, res) => {
     // 计算总数
     const total = await Product.countDocuments(query);
     
-    // 获取商品列表
+    // 获取商品列表，确保选择所有字段
     const products = await Product.find(query)
+      .select('-__v') // 排除 __v 字段，但保留其他所有字段
       .sort({ [sort]: order })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -154,8 +178,8 @@ router.post('/list', async (req, res) => {
 // 获取商品详情
 router.post('/detail', async (req, res) => {
   try {
-    const { _id } = req.body;
-    const product = await Product.findById(_id).populate('categoryId', 'name');
+    const { id } = req.body;
+    const product = await Product.findById(id).populate('categoryId', 'name');
     
     if (!product) {
       return res.error('Product not found', 404);

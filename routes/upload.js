@@ -11,6 +11,21 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// ... existing code ...
+
+// 添加 MIME 类型到文件扩展名的映射
+const mimeToExt = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'application/pdf': '.pdf',
+  'text/plain': '.txt',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx'
+  // 可以根据需要添加更多的 MIME 类型映射
+};
+// ... rest of the code ...
 // 配置 formidable
 const createForm = () => {
   const form = new formidable.IncomingForm();
@@ -41,12 +56,28 @@ router.post('/upload', async (req, res) => {
     console.log(`Receiving file: ${file.originalFilename}`);
     
     try {
-      const fileInfo = {
-        url: `/uploads/${path.basename(file.filepath)}`,
-        originalName: file.originalFilename || 'unknown',
-        size: file.size || 0,
-        mimetype: file.mimetype || 'application/octet-stream'
-      };
+       // 获取文件的 MIME 类型
+       const mimetype = file.mimetype || 'application/octet-stream';
+      
+       // 根据 MIME 类型获取对应的文件扩展名，如果没有映射则使用原文件扩展名或默认为 .bin
+       let fileExt = mimeToExt[mimetype];
+       if (!fileExt) {
+         fileExt = path.extname(file.originalFilename) || '.bin';
+       }
+       
+       // 生成新的文件名（使用原始文件路径但添加正确的扩展名）
+       const originalPath = file.filepath;
+       const newPath = `${originalPath}${fileExt}`;
+       
+       // 重命名文件添加后缀名
+       fs.renameSync(originalPath, newPath);
+ 
+       const fileInfo = {
+         url: `/uploads/${path.basename(newPath)}`,
+         originalName: file.originalFilename || 'unknown',
+         size: file.size || 0,
+         mimetype: mimetype
+       };
       uploadedFiles.push(fileInfo);
       console.log('File processed:', fileInfo);
     } catch (err) {

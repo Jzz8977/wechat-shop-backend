@@ -6,7 +6,7 @@ const productSchema = new mongoose.Schema({
   description: { type: String },
   images: [{ type: String }], // 商品图片URL数组
   stock: { type: Number, required: true, default: 0 },
-  categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
+  categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: false },
   status: { 
     type: String, 
     enum: ['active', 'inactive', 'deleted'],
